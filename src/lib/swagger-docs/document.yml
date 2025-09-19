@@ -1,0 +1,275 @@
+openapi: 3.0.0
+info:
+  title: Document Management API
+  description: API for managing employee documents in the Employee Management System
+  version: 1.0.0
+
+paths:
+  /documents:
+    get:
+      tags: [Documents]
+      summary: Get all documents
+      description: Retrieve a paginated list of documents with optional filtering
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: employeeId
+          in: query
+          description: Filter documents by employee ID
+          schema:
+            type: string
+        - name: documentType
+          in: query
+          description: Filter by document type
+          schema:
+            type: string
+            enum: [resume, contract, id_proof, certificate, other]
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags: [Documents]
+      summary: Upload a new document
+      description: Upload a new document for an employee
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - employeeId
+                - documentType
+                - file
+              properties:
+                employeeId:
+                  type: string
+                  description: ID of the employee this document belongs to
+                documentType:
+                  type: string
+                  enum: [resume, contract, id_proof, certificate, other]
+                  description: Type of the document
+                file:
+                  type: string
+                  format: binary
+                  description: The document file to upload
+                description:
+                  type: string
+                  description: Optional description of the document
+                validUntil:
+                  type: string
+                  format: date
+                  description: Expiration date of the document if applicable
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          description: File too large
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /documents/{id}:
+    get:
+      tags: [Documents]
+      summary: Get document by ID
+      description: Retrieve a specific document by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Document ID
+      responses:
+        '200':
+          description: Document file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Documents]
+      summary: Delete a document
+      description: Permanently delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Document ID to delete
+      responses:
+        '200':
+          description: Document deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  schemas:
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        employeeId:
+          type: string
+          example: "emp123"
+        documentType:
+          type: string
+          enum: [resume, contract, id_proof, certificate, other]
+          example: "contract"
+        fileName:
+          type: string
+          example: "employment_contract.pdf"
+        fileSize:
+          type: integer
+          format: int64
+          example: 102400
+        mimeType:
+          type: string
+          example: "application/pdf"
+        description:
+          type: string
+          example: "Employment Contract"
+        validUntil:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-12-31"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 10
+
+  parameters:
+    pageParam:
+      name: page
+      in: query
+      description: Page number for pagination (1-based)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    limitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+
+  responses:
+    BadRequest:
+      description: Bad Request - The request was invalid or cannot be served
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Validation error"
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                      example: "file"
+                    message:
+                      type: string
+                      example: "File is required"
+
+    NotFound:
+      description: Not Found - The specified resource was not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Document not found"
+
+    ServerError:
+      description: Internal Server Error - We had a problem with our server
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Internal server error"

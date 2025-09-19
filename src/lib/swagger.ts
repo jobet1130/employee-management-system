@@ -284,6 +284,241 @@ const options: swaggerJsdoc.Options = {
       },
     ],
     paths: {
+      // Department endpoints
+      "/api/department": {
+        get: {
+          tags: ["Departments"],
+          summary: "Get all departments",
+          description:
+            "Retrieve a list of all departments with optional filtering and pagination",
+          parameters: [
+            {
+              name: "page",
+              in: "query",
+              schema: { type: "integer", default: 1 },
+              description: "Page number for pagination",
+            },
+            {
+              name: "limit",
+              in: "query",
+              schema: { type: "integer", default: 10 },
+              description: "Number of items per page",
+            },
+            {
+              name: "search",
+              in: "query",
+              schema: { type: "string" },
+              description: "Search term to filter departments by name",
+            },
+          ],
+          responses: {
+            200: {
+              description: "List of departments",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/Department" },
+                      },
+                      total: { type: "integer" },
+                      page: { type: "integer" },
+                      limit: { type: "integer" },
+                    },
+                  },
+                },
+              },
+            },
+            500: { $ref: "#/components/responses/ServerError" },
+          },
+        },
+        post: {
+          tags: ["Departments"],
+          summary: "Create a new department",
+          description: "Create a new department with the provided details",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CreateDepartmentRequest",
+                },
+              },
+            },
+          },
+          responses: {
+            201: {
+              description: "Department created successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Department" },
+                },
+              },
+            },
+            400: { $ref: "#/components/responses/BadRequest" },
+            500: { $ref: "#/components/responses/ServerError" },
+          },
+        },
+        put: {
+          tags: ["Departments"],
+          summary: "Update a department by ID",
+          description: "Update an existing department with the provided ID",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["id"],
+                  properties: {
+                    id: {
+                      type: "integer",
+                      description: "ID of the department to update",
+                    },
+                    name: {
+                      type: "string",
+                      description: "Name of the department",
+                    },
+                    description: {
+                      type: "string",
+                      description: "Description of the department",
+                    },
+                    managerId: {
+                      type: "integer",
+                      description: "ID of the department manager",
+                    },
+                    isActive: {
+                      type: "boolean",
+                      description: "Whether the department is active",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Department updated successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Department" },
+                },
+              },
+            },
+            400: { $ref: "#/components/responses/BadRequest" },
+            404: { $ref: "#/components/responses/NotFound" },
+            500: { $ref: "#/components/responses/ServerError" },
+          },
+        },
+      },
+      "/api/department/{id}": {
+        get: {
+          tags: ["Departments"],
+          summary: "Get department by ID",
+          description: "Retrieve a single department by its ID",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Department ID",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Department details",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Department" },
+                },
+              },
+            },
+            404: { $ref: "#/components/responses/NotFound" },
+            500: { $ref: "#/components/responses/ServerError" },
+          },
+        },
+        patch: {
+          tags: ["Departments"],
+          summary: "Partially update a department",
+          description: "Update one or more fields of a department",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Department ID",
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/UpdateDepartmentRequest",
+                },
+              },
+            },
+          },
+          responses: {
+            200: {
+              description: "Department updated successfully",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/Department" },
+                },
+              },
+            },
+            400: { $ref: "#/components/responses/BadRequest" },
+            404: { $ref: "#/components/responses/NotFound" },
+            500: { $ref: "#/components/responses/ServerError" },
+          },
+        },
+        delete: {
+          tags: ["Departments"],
+          summary: "Delete a department (soft delete)",
+          description:
+            "Mark a department as deleted by setting the deletedAt timestamp",
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+              description: "Department ID",
+            },
+          ],
+          responses: {
+            200: {
+              description: "Department marked as deleted",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      message: { type: "string" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          id: { type: "integer" },
+                          deletedAt: { type: "string", format: "date-time" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            404: { $ref: "#/components/responses/NotFound" },
+            500: { $ref: "#/components/responses/ServerError" },
+          },
+        },
+      },
+
       // Authentication endpoints
       "/api/auth/login": {
         post: {
