@@ -1,0 +1,633 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================
+// ENUMS
+// ========================
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  HR
+  FINANCE
+  MANAGER
+  EMPLOYEE
+}
+
+enum ContractType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  TEMPORARY
+}
+
+enum ShiftType {
+  MORNING
+  AFTERNOON
+  NIGHT
+  ROTATING
+  FLEXIBLE
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+  COMPASSIONATE
+  STUDY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+  ABSENT
+  ON_LEAVE
+  HOLIDAY
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSING
+  COMPLETED
+  PAID
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REIMBURSED
+}
+
+enum ExpenseType {
+  TRAVEL
+  MEAL
+  ACCOMMODATION
+  OFFICE_SUPPLIES
+  TRAINING
+  OTHER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+enum TrainingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum KpiType {
+  INDIVIDUAL
+  DEPARTMENT
+}
+
+enum KpiFrequency {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  REMINDER
+  APPROVAL
+}
+
+// ========================
+// MODELS
+// ========================
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  password      String
+  role          UserRole  @default(EMPLOYEE)
+  employee      Employee?
+  refreshToken  String?
+  lastLogin     DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  
+  // Relations - Notifications
+  sentNotifications       Notification[]       @relation("SentNotifications")
+  receivedNotifications   Notification[]       @relation("ReceivedNotifications")
+  
+  // Relations - System
+  auditLogs               AuditLog[]
+  
+  // Relations - Departments
+  managedDepartments      Department[]         @relation("DepartmentManager")
+  
+  // Relations - Tasks
+  assignedTasks           Task[]               @relation("UserAssignedTasks")
+  createdTasks            Task[]               @relation("UserCreatedTasks")
+  
+  // Relations - Performance
+  performanceReviews      PerformanceReview[]   @relation("Reviewer")
+  approvedPerformanceRevs PerformanceReview[]   @relation("ApprovedByUser")
+  
+  // Relations - Expenses
+  createdExpenses         Expense[]             @relation("ExpenseCreator")
+  approvedExpenses        Expense[]             @relation("ExpenseApprover")
+  
+  // Relations - Documents
+  documents               Document[]            @relation("DocumentOwner")
+  createdDocuments        Document[]            @relation("DocumentCreator")
+  
+  // Relations - Leave
+  approvedLeaveRequests   LeaveRequest[]        @relation("LeaveApprover")
+  
+  // Relations - Projects
+  managedProjects         Project[]             @relation("ProjectManager")
+  
+  // Relations - Training
+  createdTrainings        Training[]            @relation("TrainingCreator")
+  
+  // Relations - KPIs
+  approvedEmployeeKpis    EmployeeKPI[]         @relation("EmployeeKPIApprover")
+  approvedDepartmentKpis  DepartmentKPI[]       @relation("DepartmentKPIApprover")
+}
+
+model Employee {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  employeeId      String    @unique
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          String
+  phoneNumber     String
+  emergencyContact String?
+  address         String?
+  city            String?
+  country         String?
+  postalCode      String?
+  dateOfHire      DateTime
+  contractType    ContractType
+  shiftType       ShiftType
+  managerId       Int?
+  departmentId    Int?
+  positionId      Int?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  
+  // Relations
+  user              User                @relation(fields: [userId], references: [id])
+  manager           Employee?           @relation("EmployeeManagers", fields: [managerId], references: [id])
+  directReports     Employee[]          @relation("EmployeeManagers")
+  department        Department?         @relation(fields: [departmentId], references: [id])
+  position          Position?           @relation(fields: [positionId], references: [id])
+  attendances       Attendance[]
+  leaveRequests     LeaveRequest[]
+  payrolls          Payroll[]
+  expenses          Expense[]           @relation("EmployeeExpenses")
+  performanceReviews PerformanceReview[] @relation("Reviewee")
+  employeeTrainings  EmployeeTraining[]
+  // Relations - Tasks
+  assignedTasks      Task[]             @relation("EmployeeAssignedTasks")
+  createdTasks       Task[]             @relation("EmployeeCreatedTasks")
+  
+  // Relations - Documents & KPIs
+  documents          Document[]         @relation("EmployeeDocuments")
+  employeeKpis       EmployeeKPI[]
+  
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([managerId])
+}
+
+model Department {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  managerId   Int?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  
+  // Relations
+  manager       User?           @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees     Employee[]
+  positions    Position[]
+  departmentKpis DepartmentKPI[]
+  projects     Project[]
+  
+  @@index([managerId])
+}
+
+model Position {
+  id            Int       @id @default(autoincrement())
+  title         String
+  description   String?
+  minSalary     Float
+  maxSalary     Float
+  departmentId  Int
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  
+  // Relations
+  department    Department  @relation(fields: [departmentId], references: [id])
+  employees     Employee[]
+  
+  @@index([departmentId])
+  @@unique([title, departmentId])
+}
+
+model Attendance {
+  id          Int              @id @default(autoincrement())
+  employeeId  Int
+  date        DateTime
+  clockIn     DateTime
+  clockOut    DateTime?
+  status      AttendanceStatus @default(PRESENT)
+  shiftType   ShiftType
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relations
+  employee    Employee         @relation(fields: [employeeId], references: [id])
+  
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+model LeaveRequest {
+  id          Int          @id @default(autoincrement())
+  employeeId  Int
+  leaveType   LeaveType
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?
+  status      LeaveStatus  @default(PENDING)
+  approvedBy  Int?
+  approvedAt  DateTime?
+  comments    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Relations
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  approver    User?        @relation("LeaveApprover", fields: [approvedBy], references: [id])
+  
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate, endDate])
+}
+
+model Payroll {
+  id              Int           @id @default(autoincrement())
+  employeeId      Int
+  payPeriodStart  DateTime
+  payPeriodEnd    DateTime
+  baseSalary      Float
+  allowances      Float         @default(0)
+  bonuses         Float         @default(0)
+  deductions      Float         @default(0)
+  tax             Float
+  netSalary       Float
+  status          PayrollStatus @default(DRAFT)
+  paymentDate     DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  employee        Employee      @relation(fields: [employeeId], references: [id])
+  
+  @@index([employeeId])
+  @@index([payPeriodStart, payPeriodEnd])
+  @@index([status])
+}
+
+model Expense {
+  id            Int           @id @default(autoincrement())
+  employeeId    Int
+  expenseType   ExpenseType
+  amount        Float
+  description   String
+  receiptUrl    String?
+  status        ExpenseStatus  @default(PENDING)
+  approvedById  Int?
+  approvedAt    DateTime?
+  rejectionReason String?
+  paymentDate   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  employee      Employee      @relation("EmployeeExpenses", fields: [employeeId], references: [id], map: "Expense_employeeId_fkey")
+  createdBy     User          @relation("ExpenseCreator", fields: [employeeId], references: [id], map: "Expense_createdById_fkey")
+  approvedBy    User?         @relation("ExpenseApprover", fields: [approvedById], references: [id], map: "Expense_approvedById_fkey")
+  
+  @@index([employeeId])
+  @@index([status])
+  @@index([expenseType])
+}
+
+model PerformanceReview {
+  id            Int       @id @default(autoincrement())
+  employeeId    Int
+  reviewerId    Int
+  reviewDate    DateTime  @default(now())
+  score         Float
+  strengths     String?
+  areasForImprovement String?
+  goals         String?
+  comments      String?
+  isApproved    Boolean   @default(false)
+  approvedById  Int?
+  approvedAt    DateTime?
+  nextReviewDate DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  employee        Employee  @relation("Reviewee", fields: [employeeId], references: [id])
+  reviewer        User      @relation("Reviewer", fields: [reviewerId], references: [id])
+  approvedBy      User?     @relation("ApprovedByUser", fields: [approvedById], references: [id], onDelete: NoAction)
+  
+  @@index([employeeId])
+  @@index([reviewerId])
+  @@index([reviewDate])
+}
+
+model Training {
+  id            Int               @id @default(autoincrement())
+  name          String
+  description   String?
+  startDate     DateTime
+  endDate       DateTime
+  location      String?
+  capacity      Int?
+  status        TrainingStatus    @default(NOT_STARTED)
+  createdById   Int
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+  
+  // Relations
+  createdBy     User              @relation("TrainingCreator", fields: [createdById], references: [id])
+  employeeTrainings EmployeeTraining[]
+  
+  @@index([startDate, endDate])
+  @@index([status])
+}
+
+model EmployeeTraining {
+  id              Int             @id @default(autoincrement())
+  employeeId      Int
+  trainingId      Int
+  enrollmentDate  DateTime        @default(now())
+  completionDate  DateTime?
+  score           Float?
+  status          TrainingStatus  @default(NOT_STARTED)
+  feedback        String?
+  
+  // Relations
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  training        Training        @relation(fields: [trainingId], references: [id])
+  
+  @@unique([employeeId, trainingId])
+  @@index([employeeId])
+  @@index([trainingId])
+  @@index([status])
+}
+
+model Project {
+  id            Int       @id @default(autoincrement())
+  name          String
+  description   String?
+  startDate     DateTime
+  endDate       DateTime
+  status        String    @default("PLANNING")
+  budget        Float?
+  departmentId  Int
+  managerId     Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+  
+  // Relations
+  department    Department @relation(fields: [departmentId], references: [id])
+  manager       User       @relation("ProjectManager", fields: [managerId], references: [id])
+  tasks         Task[]
+  
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([status])
+}
+
+model Task {
+  id              Int           @id @default(autoincrement())
+  name            String
+  description     String?
+  projectId       Int
+  assignedTo      Int?
+  createdById     Int
+  status          TaskStatus    @default(TODO)
+  priority        String        @default("MEDIUM")
+  dueDate         DateTime?
+  completedAt     DateTime?
+  estimatedHours  Float?
+  actualHours     Float?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  
+  // Relations
+  project         Project       @relation(fields: [projectId], references: [id])
+  
+  // Assignment relations
+  assignee        Employee?     @relation("EmployeeAssignedTasks", fields: [assignedTo], references: [id], onDelete: NoAction, map: "Task_assignedTo_employee_fkey")
+  assignedToUser  User?         @relation("UserAssignedTasks", fields: [assignedTo], references: [id], onDelete: NoAction, map: "Task_assignedTo_user_fkey")
+  
+  // Creator relations
+  createdBy       User          @relation("UserCreatedTasks", fields: [createdById], references: [id], onDelete: NoAction, map: "Task_createdBy_user_fkey")
+  createdByEmployee Employee?    @relation("EmployeeCreatedTasks", fields: [createdById], references: [id], onDelete: NoAction, map: "Task_createdBy_employee_fkey")
+  
+  @@index([projectId])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Notification {
+  id              Int               @id @default(autoincrement())
+  type            NotificationType
+  title           String
+  message         String
+  isRead          Boolean           @default(false)
+  readAt          DateTime?
+  senderId        Int?
+  recipientId     Int
+  relatedEntity   String?           // e.g., "LeaveRequest:123"
+  createdAt       DateTime          @default(now())
+  
+  // Relations
+  sender          User?             @relation("SentNotifications", fields: [senderId], references: [id])
+  recipient       User              @relation("ReceivedNotifications", fields: [recipientId], references: [id])
+  
+  @@index([recipientId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  action      String
+  entity      String
+  entityId    String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  user        User?     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+model Document {
+  id          Int       @id @default(autoincrement())
+  employeeId  Int
+  type        String
+  name        String
+  fileUrl     String
+  mimeType    String
+  size        Int
+  uploadedById Int
+  description String?
+  isPrivate   Boolean   @default(true)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  employee    Employee  @relation("EmployeeDocuments", fields: [employeeId], references: [id], map: "Document_employeeId_fkey")
+  uploadedBy  User      @relation("DocumentCreator", fields: [uploadedById], references: [id], map: "Document_uploadedById_fkey")
+  owner       User?     @relation("DocumentOwner", fields: [uploadedById], references: [id], map: "Document_ownerId_fkey")
+  
+  @@index([employeeId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ========================
+// KPI MODELS
+// ========================
+
+model KPI {
+  id            Int             @id @default(autoincrement())
+  name          String
+  description   String?
+  targetValue   Float
+  kpiType       KpiType
+  frequency     KpiFrequency
+  unit          String
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+  
+  // Relations
+  employeeKpis    EmployeeKPI[]
+  departmentKpis  DepartmentKPI[]
+  
+  @@unique([name, frequency])
+}
+
+model EmployeeKPI {
+  id              Int       @id @default(autoincrement())
+  employeeId      Int
+  kpiId           Int
+  actualValue     Float
+  evaluationDate  DateTime  @default(now())
+  status          String    @default("PENDING_REVIEW")
+  comments        String?
+  approvedById    Int?
+  approvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  kpi             KPI       @relation(fields: [kpiId], references: [id])
+  approvedBy      User?     @relation("EmployeeKPIApprover", fields: [approvedById], references: [id])
+  
+  @@unique([employeeId, kpiId, evaluationDate])
+  @@index([employeeId])
+  @@index([kpiId])
+  @@index([evaluationDate])
+  @@index([status])
+}
+
+model DepartmentKPI {
+  id              Int         @id @default(autoincrement())
+  departmentId    Int
+  kpiId           Int
+  actualValue     Float
+  evaluationDate  DateTime    @default(now())
+  status          String      @default("PENDING_REVIEW")
+  comments        String?
+  approvedById    Int?
+  approvedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  department      Department  @relation(fields: [departmentId], references: [id])
+  kpi             KPI         @relation(fields: [kpiId], references: [id])
+  approvedBy      User?       @relation("DepartmentKPIApprover", fields: [approvedById], references: [id])
+  
+  @@unique([departmentId, kpiId, evaluationDate])
+  @@index([departmentId])
+  @@index([kpiId])
+  @@index([evaluationDate])
+  @@index([status])
+}
