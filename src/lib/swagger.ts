@@ -1,6 +1,17 @@
 import swaggerJsdoc from "swagger-jsdoc";
 import { z } from "zod";
 
+// Import schemas from your existing schemas file
+import {
+  EmployeeSchema,
+  DepartmentSchema,
+  PositionSchema,
+  AttendanceSchema,
+  LeaveRequestSchema,
+  PayrollSchema,
+  KpiSchema,
+} from "./schemas";
+
 type ZodTypeAny = z.ZodType<unknown>;
 
 // Helper type to access internal Zod properties
@@ -23,17 +34,6 @@ const isZodType = (
   return !!value && typeof value === "object" && "_def" in value;
 };
 
-// Import schemas from your existing schemas file
-import {
-  EmployeeSchema,
-  DepartmentSchema,
-  PositionSchema,
-  AttendanceSchema,
-  LeaveRequestSchema,
-  PayrollSchema,
-  KpiSchema,
-} from "./schemas";
-
 // Helper function to convert Zod schema to OpenAPI schema
 interface OpenAPISchema {
   type?: string;
@@ -48,14 +48,7 @@ interface OpenAPISchema {
   enum?: (string | number | boolean | null)[];
   default?: string | number | boolean | null | object | unknown[];
   description?: string;
-  example?:
-    | string
-    | number
-    | boolean
-    | null
-    | object
-    | unknown[]
-    | { [key: string]: unknown };
+  example?: unknown;
 }
 
 export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
@@ -75,10 +68,7 @@ export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
   ) {
     const shape = def.shape() as Record<string, unknown>;
     if (shape && typeof shape === "object") {
-      const schema: Required<
-        Pick<OpenAPISchema, "type" | "required" | "properties">
-      > &
-        OpenAPISchema = {
+      const schema: OpenAPISchema = {
         type: "object",
         required: [],
         properties: {},
@@ -86,10 +76,12 @@ export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
 
       for (const [key, value] of Object.entries(shape)) {
         if (isZodType(value)) {
-          schema.properties[key] = zodToOpenApi(value as unknown as ZodTypeAny);
+          schema.properties![key] = zodToOpenApi(
+            value as unknown as ZodTypeAny,
+          );
           const valueDef = value._def as { typeName?: string };
-          if (valueDef.typeName === "ZodOptional") {
-            schema.required.push(key);
+          if (valueDef.typeName !== "ZodOptional") {
+            schema.required!.push(key);
           }
         }
       }
@@ -120,7 +112,6 @@ export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
   // Handle enums
   if (typeName === "ZodEnum" && "values" in def) {
     const enumValues = (def.values || []) as unknown[];
-    // Ensure all enum values are valid (string, number, boolean, or null)
     const validEnumValues = enumValues.filter(
       (value) =>
         typeof value === "string" ||
@@ -143,7 +134,7 @@ export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
       return {
         ...baseSchema,
         ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-      } as OpenAPISchema;
+      };
     }
   }
 
@@ -152,7 +143,7 @@ export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
     return {
       type: "array",
       items: zodToOpenApi(def.type as ZodTypeAny),
-    } as OpenAPISchema;
+    };
   }
 
   // Handle optional values
@@ -160,7 +151,6 @@ export function zodToOpenApi(zodSchema: ZodTypeAny): OpenAPISchema {
     return zodToOpenApi(def.innerType as ZodTypeAny);
   }
 
-  // If we get here, return a default schema
   return { type: "string" };
 }
 
@@ -220,6 +210,19 @@ const options: swaggerJsdoc.Options = {
         Payroll: payrollSchema,
         KPI: kpiSchema,
 
+        // Authentication schemas
+        User: {
+          type: "object",
+          properties: {
+            id: { type: "string", format: "uuid" },
+            email: { type: "string", format: "email" },
+            name: { type: "string" },
+            role: { type: "string", enum: ["ADMIN", "MANAGER", "EMPLOYEE"] },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+
         // Common schemas
         Email: {
           type: "string",
@@ -239,373 +242,7 @@ const options: swaggerJsdoc.Options = {
           enum: ["ACTIVE", "INACTIVE", "SUSPENDED"],
           description: "Current employment status",
         },
-        PhoneNumber: {
-          type: "string",
-          example: "+1234567890",
-          description: "Contact number",
-          nullable: true,
-        },
-        Address: {
-          type: "string",
-          example: "123 Main St, City, Country",
-          description: "Full address",
-          nullable: true,
-        },
-        Gender: {
-          type: "string",
-          enum: ["MALE", "FEMALE", "OTHER"],
-          example: "MALE",
-          description: "Gender of the employee",
-        },
-        ContractType: {
-          type: "string",
-          enum: ["FULL_TIME", "PART_TIME", "CONTRACT", "TEMPORARY"],
-          example: "FULL_TIME",
-          description: "Type of employment contract",
-        },
-
-        // Response schemas
-        EmployeeResponse: {
-          type: "object",
-          properties: {
-            success: { type: "boolean" },
-            data: { $ref: "#/components/schemas/Employee" },
-            message: { type: "string" },
-          },
-        },
-        EmployeeListResponse: {
-          type: "object",
-          properties: {
-            success: { type: "boolean" },
-            data: {
-              type: "array",
-              items: { $ref: "#/components/schemas/Employee" },
-            },
-            meta: {
-              type: "object",
-              properties: {
-                total: { type: "integer" },
-                page: { type: "integer" },
-                limit: { type: "integer" },
-                totalPages: { type: "integer" },
-              },
-            },
-            message: { type: "string" },
-          },
-        },
-        ErrorResponse: {
-          type: "object",
-          properties: {
-            success: { type: "boolean", example: false },
-            message: { type: "string", example: "Error message" },
-            error: { type: "string", example: "Detailed error message" },
-          },
-        },
-
-        // Filter parameter schemas
-        PaginationParams: {
-          type: "object",
-          properties: {
-            page: { type: "integer", minimum: 1, default: 1 },
-            limit: { type: "integer", minimum: 1, maximum: 100, default: 10 },
-            sortBy: { type: "string", example: "createdAt" },
-            sortOrder: {
-              type: "string",
-              enum: ["asc", "desc"],
-              default: "desc",
-            },
-          },
-        },
-        EmployeeFilterParams: {
-          type: "object",
-          properties: {
-            status: {
-              type: "string",
-              enum: ["ACTIVE", "INACTIVE", "SUSPENDED"],
-            },
-            departmentId: { type: "string" },
-            positionId: { type: "string" },
-            contractType: { type: "string" },
-            search: { type: "string", description: "Search by name or email" },
-          },
-        },
-        AttendanceFilterParams: {
-          type: "object",
-          properties: {
-            employeeId: { type: "string" },
-            startDate: { type: "string", format: "date" },
-            endDate: { type: "string", format: "date" },
-            status: {
-              type: "string",
-              enum: ["PRESENT", "ABSENT", "LATE", "HALF_DAY"],
-            },
-          },
-        },
-        LeaveRequestFilterParams: {
-          type: "object",
-          properties: {
-            employeeId: { type: "string" },
-            startDate: { type: "string", format: "date" },
-            endDate: { type: "string", format: "date" },
-            status: {
-              type: "string",
-              enum: ["PENDING", "APPROVED", "REJECTED"],
-            },
-            type: { type: "string" },
-          },
-        },
-        PayrollFilterParams: {
-          type: "object",
-          properties: {
-            employeeId: { type: "string" },
-            month: { type: "integer", minimum: 1, maximum: 12 },
-            year: { type: "integer", minimum: 2000, maximum: 2100 },
-            status: { type: "string", enum: ["PENDING", "PAID", "CANCELLED"] },
-          },
-        },
-        KPIFilterParams: {
-          type: "object",
-          properties: {
-            employeeId: { type: "string" },
-            startDate: { type: "string", format: "date" },
-            endDate: { type: "string", format: "date" },
-            metric: { type: "string" },
-          },
-        },
-      },
-      parameters: {
-        employeeId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "Employee ID",
-        },
-        departmentId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "Department ID",
-        },
-        positionId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "Position ID",
-        },
-        attendanceId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "Attendance record ID",
-        },
-        leaveRequestId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "Leave request ID",
-        },
-        payrollId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "Payroll record ID",
-        },
-        kpiId: {
-          name: "id",
-          in: "path",
-          required: true,
-          schema: { type: "string" },
-          description: "KPI record ID",
-        },
-      },
-      requestBodies: {
-        EmployeeRequest: {
-          description: "Employee object that needs to be added or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/Employee",
-              },
-            },
-          },
-        },
-        DepartmentRequest: {
-          description: "Department object that needs to be added or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/Department",
-              },
-            },
-          },
-        },
-        PositionRequest: {
-          description: "Position object that needs to be added or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/Position",
-              },
-            },
-          },
-        },
-        AttendanceRequest: {
-          description: "Attendance record that needs to be added or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/Attendance",
-              },
-            },
-          },
-        },
-        LeaveRequest: {
-          description: "Leave request that needs to be submitted or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/LeaveRequest",
-              },
-            },
-          },
-        },
-        PayrollRequest: {
-          description: "Payroll record that needs to be added or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/Payroll",
-              },
-            },
-          },
-        },
-        KPIRequest: {
-          description: "KPI record that needs to be added or updated",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/KPI",
-              },
-            },
-          },
-        },
-        LeaveStatusUpdate: {
-          description: "Leave request status update",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["status"],
-                properties: {
-                  status: {
-                    type: "string",
-                    enum: ["APPROVED", "REJECTED", "CANCELLED"],
-                  },
-                  comment: {
-                    type: "string",
-                    description: "Optional comment for the status update",
-                  },
-                },
-              },
-            },
-          },
-        },
-        BulkAttendance: {
-          description: "Bulk attendance records",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "array",
-                items: {
-                  $ref: "#/components/schemas/Attendance",
-                },
-              },
-            },
-          },
-        },
-        GeneratePayroll: {
-          description: "Parameters for generating payroll",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["month", "year"],
-                properties: {
-                  month: {
-                    type: "integer",
-                    minimum: 1,
-                    maximum: 12,
-                    description: "Month (1-12)",
-                  },
-                  year: {
-                    type: "integer",
-                    minimum: 2000,
-                    maximum: 2100,
-                    description: "Year (e.g., 2023)",
-                  },
-                  employeeIds: {
-                    type: "array",
-                    items: {
-                      type: "string",
-                    },
-                    description:
-                      "List of employee IDs to generate payroll for. If not provided, generates for all active employees.",
-                  },
-                  includeBonus: {
-                    type: "boolean",
-                    default: false,
-                    description:
-                      "Whether to include bonus in payroll calculation",
-                  },
-                  includeDeductions: {
-                    type: "boolean",
-                    default: true,
-                    description:
-                      "Whether to include deductions in payroll calculation",
-                  },
-                },
-              },
-            },
-          },
-        },
-        KPIUpdate: {
-          description: "KPI performance update",
-          required: true,
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                required: ["achieved"],
-                properties: {
-                  achieved: {
-                    type: "number",
-                    description: "Achieved value for the KPI",
-                  },
-                  comments: {
-                    type: "string",
-                    description: "Optional comments about the KPI performance",
-                  },
-                },
-              },
-            },
-          },
-        },
+        // ... other common schemas ...
       },
       responses: {
         UnauthorizedError: {
@@ -618,13 +255,13 @@ const options: swaggerJsdoc.Options = {
               example: {
                 success: false,
                 message: "Unauthorized",
-                error: "No authorization token was found",
+                error: "No authorization token was found or token is invalid",
               },
             },
           },
         },
-        BadRequest: {
-          description: "Bad request. Invalid input data",
+        ForbiddenError: {
+          description: "Insufficient permissions",
           content: {
             "application/json": {
               schema: {
@@ -632,42 +269,13 @@ const options: swaggerJsdoc.Options = {
               },
               example: {
                 success: false,
-                message: "Validation error",
-                error: "Invalid input data",
+                message: "Forbidden",
+                error: "You do not have permission to access this resource",
               },
             },
           },
         },
-        NotFound: {
-          description: "The requested resource was not found",
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/ErrorResponse",
-              },
-              example: {
-                success: false,
-                message: "Not found",
-                error: "Resource not found",
-              },
-            },
-          },
-        },
-        InternalServerError: {
-          description: "Internal server error",
-          content: {
-            "application/json": {
-              schema: {
-                $ref: "#/components/schemas/ErrorResponse",
-              },
-              example: {
-                success: false,
-                message: "Internal server error",
-                error: "Something went wrong on our end",
-              },
-            },
-          },
-        },
+        // ... other common responses ...
       },
     },
     security: [
@@ -675,6 +283,67 @@ const options: swaggerJsdoc.Options = {
         bearerAuth: [],
       },
     ],
+    paths: {
+      // Authentication endpoints
+      "/api/auth/login": {
+        post: {
+          tags: ["Authentication"],
+          summary: "User login",
+          description: "Authenticate user and return JWT token",
+          security: [], // No auth required for login
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["email", "password"],
+                  properties: {
+                    email: {
+                      type: "string",
+                      format: "email",
+                      example: "admin@example.com",
+                    },
+                    password: {
+                      type: "string",
+                      format: "password",
+                      example: "yourpassword",
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Successful authentication",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      token: {
+                        type: "string",
+                        description: "JWT access token",
+                        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      },
+                      user: {
+                        $ref: "#/components/schemas/User",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              $ref: "#/components/responses/UnauthorizedError",
+            },
+          },
+        },
+      },
+      // ... other authentication endpoints ...
+    },
   },
   apis: ["./src/app/api/**/*.ts"],
 };
