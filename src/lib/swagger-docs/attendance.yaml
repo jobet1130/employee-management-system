@@ -1,0 +1,155 @@
+# Attendance API Documentation
+
+paths:
+  /api/attendance:
+    get:
+      tags: [Attendance]
+      summary: Get attendance records
+      description: Returns a filtered list of attendance records
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: employeeId
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PRESENT, ABSENT, LATE, HALF_DAY]
+      responses:
+        '200':
+          description: A paginated list of attendance records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Attendance'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Attendance]
+      summary: Create attendance record(s)
+      description: Creates one or more attendance records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - $ref: '#/components/schemas/Attendance'
+                - type: array
+                  items:
+                    $ref: '#/components/schemas/Attendance'
+      responses:
+        '201':
+          description: Attendance record(s) created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    anyOf:
+                      - $ref: '#/components/schemas/Attendance'
+                      - type: array
+                        items:
+                          $ref: '#/components/schemas/Attendance'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/attendance/{id}:
+    parameters:
+      - $ref: '#/components/parameters/attendanceId'
+    
+    get:
+      tags: [Attendance]
+      summary: Get attendance record by ID
+      description: Returns a single attendance record by its ID
+      responses:
+        '200':
+          description: Attendance record details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Attendance]
+      summary: Update an attendance record
+      description: Updates an existing attendance record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Attendance'
+      responses:
+        '200':
+          description: Attendance record updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Attendance]
+      summary: Delete an attendance record
+      description: Deletes an attendance record by its ID
+      responses:
+        '200':
+          description: Attendance record deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Attendance record deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFound'

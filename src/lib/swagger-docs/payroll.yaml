@@ -1,0 +1,215 @@
+# Payroll API Documentation
+
+paths:
+  /api/payroll:
+    get:
+      tags: [Payroll]
+      summary: Get payroll records
+      description: Returns a filtered list of payroll records
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: employeeId
+          in: query
+          schema:
+            type: string
+        - name: month
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+        - name: year
+          in: query
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, PAID, CANCELLED]
+      responses:
+        '200':
+          description: A paginated list of payroll records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payroll'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Payroll]
+      summary: Generate payroll
+      description: Generates payroll for the specified period and employees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [month, year]
+              properties:
+                month:
+                  type: integer
+                  minimum: 1
+                  maximum: 12
+                  description: 'Month (1-12)'
+                year:
+                  type: integer
+                  minimum: 2000
+                  maximum: 2100
+                  description: 'Year (e.g., 2023)'
+                employeeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: 'List of employee IDs to generate payroll for. If not provided, generates for all active employees.'
+                includeBonus:
+                  type: boolean
+                  default: false
+                  description: 'Whether to include bonus in payroll calculation'
+                includeDeductions:
+                  type: boolean
+                  default: true
+                  description: 'Whether to include deductions in payroll calculation'
+      responses:
+        '201':
+          description: Payroll generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payroll'
+                  message:
+                    type: string
+                    example: "Payroll generated successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/payroll/{id}:
+    parameters:
+      - $ref: '#/components/parameters/payrollId'
+    
+    get:
+      tags: [Payroll]
+      summary: Get payroll record by ID
+      description: Returns a single payroll record by its ID
+      responses:
+        '200':
+          description: Payroll record details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Payroll]
+      summary: Update a payroll record
+      description: Updates an existing payroll record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Payroll'
+      responses:
+        '200':
+          description: Payroll record updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to update payroll records
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Payroll]
+      summary: Delete a payroll record
+      description: Deletes a payroll record by its ID
+      responses:
+        '200':
+          description: Payroll record deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Payroll record deleted successfully"
+        '400':
+          description: Cannot delete a processed payroll record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to delete payroll records
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/payroll/{id}/process:
+    parameters:
+      - $ref: '#/components/parameters/payrollId'
+    
+    post:
+      tags: [Payroll]
+      summary: Process payroll
+      description: Marks a payroll as processed/paid
+      responses:
+        '200':
+          description: Payroll processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollResponse'
+        '400':
+          description: Payroll is already processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to process payroll
+        '404':
+          $ref: '#/components/responses/NotFound'

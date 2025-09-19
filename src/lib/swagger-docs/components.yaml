@@ -1,0 +1,176 @@
+# Shared Components
+
+components:
+  # Common Parameters
+  parameters:
+    page:
+      name: page
+      in: query
+      description: Page number for pagination
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    limit:
+      name: limit
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    
+    employeeId:
+      name: id
+      in: path
+      required: true
+      description: Employee ID
+      schema:
+        type: string
+    
+    departmentId:
+      name: id
+      in: path
+      required: true
+      description: Department ID
+      schema:
+        type: string
+    
+    positionId:
+      name: id
+      in: path
+      required: true
+      description: Position ID
+      schema:
+        type: string
+    
+    attendanceId:
+      name: id
+      in: path
+      required: true
+      description: Attendance record ID
+      schema:
+        type: string
+    
+    leaveRequestId:
+      name: id
+      in: path
+      required: true
+      description: Leave request ID
+      schema:
+        type: string
+    
+    payrollId:
+      name: id
+      in: path
+      required: true
+      description: Payroll record ID
+      schema:
+        type: string
+    
+    kpiId:
+      name: id
+      in: path
+      required: true
+      description: KPI record ID
+      schema:
+        type: string
+
+  # Common Schemas
+  schemas:
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Number of items per page
+        totalPages:
+          type: integer
+          description: Total number of pages
+    
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+    
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        error:
+          type: string
+          example: "Detailed error message"
+
+  # Common Responses
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Unauthorized"
+            error: "No authorization token was found"
+    
+    BadRequest:
+      description: Bad request. Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Validation error"
+            error: "Invalid input data"
+    
+    NotFound:
+      description: The requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Not found"
+            error: "Resource not found"
+    
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Internal server error"
+            error: "Something went wrong on our end"
+
+  # Security Schemes
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'

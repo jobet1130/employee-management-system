@@ -1,0 +1,226 @@
+# KPI API Documentation
+
+paths:
+  /api/kpis:
+    get:
+      tags: [KPIs]
+      summary: Get KPI records
+      description: Returns a filtered list of KPI records
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: employeeId
+          in: query
+          schema:
+            type: string
+        - name: metric
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: A paginated list of KPI records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KPI'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [KPIs]
+      summary: Create a KPI record
+      description: Creates a new KPI record for an employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KPI'
+      responses:
+        '201':
+          description: KPI record created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KPIResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/kpis/{id}:
+    parameters:
+      - $ref: '#/components/parameters/kpiId'
+    
+    get:
+      tags: [KPIs]
+      summary: Get KPI record by ID
+      description: Returns a single KPI record by its ID
+      responses:
+        '200':
+          description: KPI record details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KPIResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [KPIs]
+      summary: Update a KPI record
+      description: Updates an existing KPI record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KPI'
+      responses:
+        '200':
+          description: KPI record updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KPIResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to update this KPI record
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [KPIs]
+      summary: Delete a KPI record
+      description: Deletes a KPI record by its ID
+      responses:
+        '200':
+          description: KPI record deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "KPI record deleted successfully"
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to delete this KPI record
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/kpis/{id}/update-performance:
+    parameters:
+      - $ref: '#/components/parameters/kpiId'
+    
+    post:
+      tags: [KPIs]
+      summary: Update KPI performance
+      description: Updates the achieved value and comments for a KPI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [achieved]
+              properties:
+                achieved:
+                  type: number
+                  description: Achieved value for the KPI
+                comments:
+                  type: string
+                  description: Optional comments about the KPI performance
+      responses:
+        '200':
+          description: KPI performance updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KPIResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          description: Not authorized to update this KPI
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/employees/{employeeId}/kpis:
+    parameters:
+      - $ref: '#/components/parameters/employeeId'
+    
+    get:
+      tags: [KPIs]
+      summary: Get employee KPIs
+      description: Returns all KPIs for a specific employee
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: metric
+          in: query
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: A paginated list of employee KPIs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KPI'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFound'
