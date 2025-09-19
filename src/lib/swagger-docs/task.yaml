@@ -1,0 +1,634 @@
+openapi: 3.0.0
+info:
+  title: Task Management API
+  description: API for managing tasks in the Employee Management System
+  version: 1.0.0
+
+# Reusable components
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - priority
+        - projectId
+        - createdById
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the task
+        name:
+          type: string
+          description: Name of the task
+        description:
+          type: string
+          nullable: true
+          description: Detailed description of the task
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, CANCELLED]
+          description: Current status of the task
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, URGENT]
+          description: Priority level of the task
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Due date for the task
+        project:
+          $ref: '#/components/schemas/ProjectReference'
+        createdBy:
+          $ref: '#/components/schemas/UserReference'
+        assignees:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assignee'
+          description: List of users assigned to this task
+        createdAt:
+          type: string
+          format: date-time
+          description: When the task was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the task was last updated
+
+    ProjectReference:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+
+    UserReference:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+
+    Assignee:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+        assignedAt:
+          type: string
+          format: date-time
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+        - status
+        - priority
+        - projectId
+        - createdById
+      properties:
+        title:
+          type: string
+          description: Title of the task
+        description:
+          type: string
+          nullable: true
+          description: Detailed description of the task
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, CANCELLED]
+          description: Initial status of the task
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, URGENT]
+          description: Priority level of the task
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Due date for the task
+        assigneeIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: List of user IDs to assign to this task
+        projectId:
+          type: integer
+          format: int64
+          description: ID of the project this task belongs to
+        createdById:
+          type: integer
+          format: int64
+          description: ID of the user creating this task
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+        limit:
+          type: integer
+          description: Number of items per page
+        total:
+          type: integer
+          description: Total number of items
+        totalPages:
+          type: integer
+          description: Total number of pages
+
+  responses:
+    BadRequest:
+      description: Bad Request - The request was invalid or cannot be served
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized - Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Forbidden:
+      description: Forbidden - Access denied
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    NotFound:
+      description: Not Found - The requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    ServerError:
+      description: Internal Server Error - Something went wrong on the server
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+
+paths:
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: Get all tasks
+      description: Retrieve a paginated list of tasks with optional filtering
+      parameters:
+        - $ref: '#/components/parameters/pageParam'
+        - $ref: '#/components/parameters/limitParam'
+        - name: assigneeId
+          in: query
+          description: Filter tasks by assignee ID
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by task status
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, cancelled]
+        - name: priority
+          in: query
+          description: Filter by task priority
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+    post:
+      tags: [Tasks]
+      summary: Create a new task
+      description: Create a new task with the provided details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: Get task by ID
+      description: Retrieve a specific task by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Task ID
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    put:
+      tags: [Tasks]
+      summary: Update a task
+      description: Update an existing task with the provided ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Task ID to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      description: Permanently delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Task ID to delete
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tasks/{id}/status:
+    patch:
+      tags: [Tasks]
+      summary: Update task status
+      description: Update the status of a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, in_progress, completed, cancelled]
+      responses:
+        '200':
+          description: Task status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /tasks/{id}/assign:
+    post:
+      tags: [Tasks]
+      summary: Assign task to user
+      description: Assign a task to one or more users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assigneeIds]
+              properties:
+                assigneeIds:
+                  type: array
+                  items:
+                    type: string
+                  description: List of user IDs to assign the task to
+      responses:
+        '200':
+          description: Task assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  schemas:
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        title:
+          type: string
+          example: "Complete project documentation"
+        description:
+          type: string
+          example: "Write comprehensive documentation for the new feature"
+        status:
+          type: string
+          enum: [pending, in_progress, completed, cancelled]
+          example: "in_progress"
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          example: "high"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2025-12-31T23:59:59Z"
+        assignees:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserReference'
+        createdBy:
+          $ref: '#/components/schemas/UserReference'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+        - status
+        - priority
+      properties:
+        title:
+          type: string
+          example: "Complete project documentation"
+        description:
+          type: string
+          example: "Write comprehensive documentation for the new feature"
+        status:
+          type: string
+          enum: [pending, in_progress, completed, cancelled]
+          example: "pending"
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          example: "high"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2025-12-31T23:59:59Z"
+        assigneeIds:
+          type: array
+          items:
+            type: string
+          example: ["user-123", "user-456"]
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Complete project documentation"
+        description:
+          type: string
+          example: "Write comprehensive documentation for the new feature"
+        status:
+          type: string
+          enum: [pending, in_progress, completed, cancelled]
+          example: "in_progress"
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          example: "high"
+        dueDate:
+          type: string
+          format: date-time
+          example: "2025-12-31T23:59:59Z"
+
+    UserReference:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "user-123"
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        totalPages:
+          type: integer
+          example: 10
+
+  parameters:
+    pageParam:
+      name: page
+      in: query
+      description: Page number for pagination (1-based)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    limitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+
+  responses:
+    BadRequest:
+      description: Bad Request - The request was invalid or cannot be served
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Validation error"
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                      example: "title"
+                    message:
+                      type: string
+                      example: "Title is required"
+
+    NotFound:
+      description: Not Found - The specified resource was not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Task not found"
+
+    ServerError:
+      description: Internal Server Error - We had a problem with our server
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: "Internal server error"

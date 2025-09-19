@@ -133,6 +133,7 @@ enum NotificationType {
 model User {
   id            Int       @id @default(autoincrement())
   email         String    @unique
+  name          String?
   password      String
   role          UserRole  @default(EMPLOYEE)
   employee      Employee?
@@ -154,7 +155,7 @@ model User {
   managedDepartments      Department[]         @relation("DepartmentManager")
   
   // Relations - Tasks
-  assignedTasks           Task[]               @relation("UserAssignedTasks")
+  assignedTasks           UserTask[]           @relation("UserAssignedTasks")
   createdTasks            Task[]               @relation("UserCreatedTasks")
   
   // Relations - Performance
@@ -221,8 +222,8 @@ model Employee {
   performanceReviews PerformanceReview[] @relation("Reviewee")
   employeeTrainings  EmployeeTraining[]
   // Relations - Tasks
-  assignedTasks      Task[]             @relation("EmployeeAssignedTasks")
-  createdTasks       Task[]             @relation("EmployeeCreatedTasks")
+  assignedTasks      UserTask[]           @relation("EmployeeAssignedTasks")
+  createdTasks       Task[]               @relation("EmployeeCreatedTasks")
   
   // Relations - Documents & KPIs
   documents          Document[]         @relation("EmployeeDocuments")
@@ -464,7 +465,6 @@ model Task {
   name            String
   description     String?
   projectId       Int
-  assignedTo      Int?
   createdById     Int
   status          TaskStatus    @default(TODO)
   priority        String        @default("MEDIUM")
@@ -479,18 +479,34 @@ model Task {
   // Relations
   project         Project       @relation(fields: [projectId], references: [id])
   
-  // Assignment relations
-  assignee        Employee?     @relation("EmployeeAssignedTasks", fields: [assignedTo], references: [id], onDelete: NoAction, map: "Task_assignedTo_employee_fkey")
-  assignedToUser  User?         @relation("UserAssignedTasks", fields: [assignedTo], references: [id], onDelete: NoAction, map: "Task_assignedTo_user_fkey")
+  // Assignees (many-to-many with User)
+  assignees       UserTask[]
   
   // Creator relations
-  createdBy       User          @relation("UserCreatedTasks", fields: [createdById], references: [id], onDelete: NoAction, map: "Task_createdBy_user_fkey")
-  createdByEmployee Employee?    @relation("EmployeeCreatedTasks", fields: [createdById], references: [id], onDelete: NoAction, map: "Task_createdBy_employee_fkey")
+  createdBy       User          @relation("UserCreatedTasks", fields: [createdById], references: [id], onDelete: NoAction, map: "Task_createdByUser_fkey")
+  createdByEmployee Employee?    @relation("EmployeeCreatedTasks", fields: [createdById], references: [id], onDelete: NoAction, map: "Task_createdByEmployee_fkey")
   
   @@index([projectId])
-  @@index([assignedTo])
   @@index([status])
   @@index([dueDate])
+}
+
+// Join table for many-to-many relationship between Task and User
+model UserTask {
+  id          Int       @id @default(autoincrement())
+  taskId      Int
+  userId      Int
+  employeeId  Int?
+  assignedAt  DateTime  @default(now())
+  
+  // Relations
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade, map: "UserTask_taskId_fkey")
+  user      User      @relation("UserAssignedTasks", fields: [userId], references: [id], onDelete: Cascade, map: "UserTask_userId_fkey")
+  employee  Employee? @relation("EmployeeAssignedTasks", fields: [employeeId], references: [id], onDelete: Cascade, map: "UserTask_employeeId_fkey")
+  
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@index([employeeId])
 }
 
 model Notification {
