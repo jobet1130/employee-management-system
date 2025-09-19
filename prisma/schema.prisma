@@ -15,6 +15,15 @@ datasource db {
 // ENUMS
 // ========================
 
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHECK
+  DIRECT_DEPOSIT
+  PAYPAL
+  OTHER
+}
+
 enum UserRole {
   SUPERADMIN
   ADMIN
@@ -126,6 +135,17 @@ enum NotificationType {
   APPROVAL
 }
 
+enum AdjustmentType {
+  BONUS
+  COMMISSION
+  OVERTIME
+  DEDUCTION
+  ADVANCE
+  LOAN
+  TAX
+  OTHER
+}
+
 // ========================
 // MODELS
 // ========================
@@ -180,8 +200,9 @@ model User {
   createdTrainings        Training[]            @relation("TrainingCreator")
   
   // Relations - KPIs
-  approvedEmployeeKpis    EmployeeKPI[]         @relation("EmployeeKPIApprover")
-  approvedDepartmentKpis  DepartmentKPI[]       @relation("DepartmentKPIApprover")
+  approvedEmployeeKpis      EmployeeKPI[]         @relation("EmployeeKPIApprover")
+  approvedDepartmentKpis    DepartmentKPI[]       @relation("DepartmentKPIApprover")
+  approvedPayrollAdjustments PayrollAdjustment[]   @relation("ApprovedPayrollAdjustments")
 }
 
 model Employee {
@@ -335,7 +356,8 @@ model Payroll {
   updatedAt       DateTime      @updatedAt
   
   // Relations
-  employee        Employee      @relation(fields: [employeeId], references: [id])
+  employee        Employee          @relation(fields: [employeeId], references: [id])
+  adjustments     PayrollAdjustment[]
   
   @@index([employeeId])
   @@index([payPeriodStart, payPeriodEnd])
@@ -647,4 +669,29 @@ model DepartmentKPI {
   @@index([kpiId])
   @@index([evaluationDate])
   @@index([status])
+}
+
+model PayrollAdjustment {
+  id              Int           @id @default(autoincrement())
+  payrollId       Int
+  type            AdjustmentType
+  description     String?
+  amount          Float
+  isDeduction     Boolean       @default(false)
+  adjustmentDate  DateTime      @default(now())
+  approvedById    Int?
+  approvedAt      DateTime?
+  status          String        @default("PENDING") // e.g., PENDING, APPROVED, REJECTED
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  payroll         Payroll       @relation(fields: [payrollId], references: [id])
+  approvedBy      User?         @relation("ApprovedPayrollAdjustments", fields: [approvedById], references: [id])
+
+  @@index([payrollId])
+  @@index([type])
+  @@index([status])
+  @@index([adjustmentDate])
 }

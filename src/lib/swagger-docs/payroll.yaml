@@ -1,5 +1,108 @@
 # Payroll API Documentation
 
+components:
+  schemas:
+    PayrollAdjustment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the adjustment
+        payrollId:
+          type: integer
+          format: int64
+          description: ID of the payroll record this adjustment belongs to
+        type:
+          type: string
+          enum: [BONUS, COMMISSION, ALLOWANCE, REIMBURSEMENT, LOAN, ADVANCE, TAX, INSURANCE, PENSION, OTHER]
+          description: Type of adjustment
+        amount:
+          type: number
+          format: float
+          description: Adjustment amount (positive for additions, negative for deductions)
+        description:
+          type: string
+          description: Description of the adjustment
+        approved:
+          type: boolean
+          description: Whether the adjustment has been approved
+        approvedBy:
+          type: integer
+          format: int64
+          nullable: true
+          description: ID of the user who approved this adjustment
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the adjustment was approved
+        createdAt:
+          type: string
+          format: date-time
+          description: When the adjustment was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the adjustment was last updated
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the adjustment was soft-deleted
+
+    CreatePayrollAdjustmentRequest:
+      type: object
+      required: [payrollId, type, amount]
+      properties:
+        payrollId:
+          type: integer
+          format: int64
+          description: ID of the payroll record
+        type:
+          type: string
+          enum: [BONUS, COMMISSION, ALLOWANCE, REIMBURSEMENT, LOAN, ADVANCE, TAX, INSURANCE, PENSION, OTHER]
+          description: Type of adjustment
+        amount:
+          type: number
+          format: float
+          description: Adjustment amount (positive for additions, negative for deductions)
+        description:
+          type: string
+          description: Description of the adjustment
+        approved:
+          type: boolean
+          default: false
+          description: Whether the adjustment is pre-approved
+        approvedBy:
+          type: integer
+          format: int64
+          nullable: true
+          description: ID of the user approving this adjustment
+
+    UpdatePayrollAdjustmentRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [BONUS, COMMISSION, ALLOWANCE, REIMBURSEMENT, LOAN, ADVANCE, TAX, INSURANCE, PENSION, OTHER]
+          description: Type of adjustment
+        amount:
+          type: number
+          format: float
+          description: Adjustment amount (positive for additions, negative for deductions)
+        description:
+          type: string
+          description: Description of the adjustment
+        approved:
+          type: boolean
+          description: Whether the adjustment is approved
+        approvedBy:
+          type: integer
+          format: int64
+          nullable: true
+          description: ID of the user approving this adjustment
+
 paths:
   /api/payroll:
     get:
