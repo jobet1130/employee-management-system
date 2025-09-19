@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-type ApiResponseOptions<T> = {
+type ApiResponseOptions<T = unknown> = {
   data?: T;
   message?: string;
   status?: number;
-  meta?: Record<string, any>;
+  meta?: Record<string, unknown>;
 };
 
-export function createApiResponse<T = any>({
+export function createApiResponse<T = unknown>({
   data,
   message = "Success",
   status = 200,
@@ -24,12 +24,17 @@ export function createApiResponse<T = any>({
   );
 }
 
+type ErrorData =
+  | Record<string, string | string[]>
+  | string[]
+  | Record<string, unknown>;
+
 export function createErrorResponse(
   message: string,
   status: number = 500,
-  errors?: any[],
+  errors?: ErrorData,
 ) {
-  return createApiResponse({
+  return createApiResponse<{ errors?: ErrorData }>({
     message,
     status,
     data: errors ? { errors } : undefined,
@@ -38,8 +43,15 @@ export function createErrorResponse(
 
 // Common error responses
 export const errorResponses = {
-  badRequest: (message: string = "Bad Request") =>
-    createErrorResponse(message, 400),
+  badRequest: (
+    message: string | ErrorData = "Bad Request",
+    data?: ErrorData,
+  ) => {
+    if (typeof message === "object") {
+      return createErrorResponse("Bad Request", 400, message);
+    }
+    return createErrorResponse(message, 400, data);
+  },
   unauthorized: (message: string = "Unauthorized") =>
     createErrorResponse(message, 401),
   forbidden: (message: string = "Forbidden") =>

@@ -134,6 +134,35 @@ export const KpiSchema = z.object({
 
 export type KpiInput = z.infer<typeof KpiSchema>;
 
+// Training Schema
+export const TrainingSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional().nullable(),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime().optional().nullable(),
+  status: z
+    .enum(["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "CANCELLED"])
+    .default("NOT_STARTED"),
+  location: z.string().optional().nullable(),
+  trainer: z.string().optional().nullable(),
+  maxParticipants: z.number().int().positive().optional().nullable(),
+  cost: z.number().nonnegative().optional().nullable(),
+  departmentId: z.string().uuid().optional().nullable(),
+});
+
+export const UpdateTrainingSchema = TrainingSchema.partial().refine(
+  (data) => {
+    // At least one field should be provided for update
+    return Object.keys(data).length > 0;
+  },
+  {
+    message: "At least one field must be provided for update",
+  },
+);
+
+export type TrainingInput = z.infer<typeof TrainingSchema>;
+export type UpdateTrainingInput = z.infer<typeof UpdateTrainingSchema>;
+
 /**
  * @swagger
  * components:
