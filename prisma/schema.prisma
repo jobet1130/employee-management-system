@@ -200,8 +200,8 @@ model User {
   createdTrainings        Training[]            @relation("TrainingCreator")
   
   // Relations - KPIs
-  approvedEmployeeKpis      EmployeeKPI[]         @relation("EmployeeKPIApprover")
-  approvedDepartmentKpis    DepartmentKPI[]       @relation("DepartmentKPIApprover")
+  approvedEmployeeKpis      EmployeeKpi[]         @relation("EmployeeKpiApprover")
+  approvedDepartmentKpis    DepartmentKpi[]       @relation("DepartmentKpiApprover")
   approvedPayrollAdjustments PayrollAdjustment[]   @relation("ApprovedPayrollAdjustments")
 }
 
@@ -248,7 +248,7 @@ model Employee {
   
   // Relations - Documents & KPIs
   documents          Document[]         @relation("EmployeeDocuments")
-  employeeKpis       EmployeeKPI[]
+  employeeKpis       EmployeeKpi[]
   
   @@index([departmentId])
   @@index([positionId])
@@ -269,7 +269,7 @@ model Department {
   manager       User?           @relation("DepartmentManager", fields: [managerId], references: [id])
   employees     Employee[]
   positions    Position[]
-  departmentKpis DepartmentKPI[]
+  departmentKpis DepartmentKpi[]
   projects     Project[]
   
   @@index([managerId])
@@ -418,6 +418,8 @@ model PerformanceReview {
 
 model Training {
   id            Int               @id @default(autoincrement())
+  kpiId           Int
+  kpi             Kpi       @relation(fields: [kpiId], references: [id])
   name          String
   description   String?
   startDate     DateTime
@@ -601,7 +603,7 @@ model Document {
 // KPI MODELS
 // ========================
 
-model KPI {
+model Kpi {
   id            Int             @id @default(autoincrement())
   name          String
   description   String?
@@ -615,13 +617,14 @@ model KPI {
   deletedAt     DateTime?
   
   // Relations
-  employeeKpis    EmployeeKPI[]
-  departmentKpis  DepartmentKPI[]
+  employeeKpis    EmployeeKpi[]
+  departmentKpis  DepartmentKpi[]
+  trainings       Training[]
   
   @@unique([name, frequency])
 }
 
-model EmployeeKPI {
+model EmployeeKpi {
   id              Int       @id @default(autoincrement())
   employeeId      Int
   kpiId           Int
@@ -636,8 +639,8 @@ model EmployeeKPI {
   
   // Relations
   employee        Employee  @relation(fields: [employeeId], references: [id])
-  kpi             KPI       @relation(fields: [kpiId], references: [id])
-  approvedBy      User?     @relation("EmployeeKPIApprover", fields: [approvedById], references: [id])
+  kpi             Kpi       @relation(fields: [kpiId], references: [id])
+  approvedBy      User?     @relation("EmployeeKpiApprover", fields: [approvedById], references: [id])
   
   @@unique([employeeId, kpiId, evaluationDate])
   @@index([employeeId])
@@ -646,7 +649,7 @@ model EmployeeKPI {
   @@index([status])
 }
 
-model DepartmentKPI {
+model DepartmentKpi {
   id              Int         @id @default(autoincrement())
   departmentId    Int
   kpiId           Int
@@ -661,8 +664,8 @@ model DepartmentKPI {
   
   // Relations
   department      Department  @relation(fields: [departmentId], references: [id])
-  kpi             KPI         @relation(fields: [kpiId], references: [id])
-  approvedBy      User?       @relation("DepartmentKPIApprover", fields: [approvedById], references: [id])
+  kpi             Kpi       @relation(fields: [kpiId], references: [id])
+  approvedBy      User?     @relation("DepartmentKpiApprover", fields: [approvedById], references: [id])
   
   @@unique([departmentId, kpiId, evaluationDate])
   @@index([departmentId])
